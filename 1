@@ -1,0 +1,445 @@
+-- FlyFollow_Mobile_TweenVersion.lua
+-- Auto Fly theo player chọn (Mobile GUI) + ESP + Tween Movement + Distance + GUI Toggle
+
+local Players = game:GetService("Players")
+local RunService = game:GetService("RunService")
+local TweenService = game:GetService("TweenService")
+local LocalPlayer = Players.LocalPlayer
+local UserInputService = game:GetService("UserInputService")
+
+-- ⚙️ Config
+local config = {
+    stopDistance = 5,      -- Khoảng cách dừng lại
+    heightOffset = 5,      -- Cao hơn target bao nhiêu studs
+    tweenSpeed = 300       -- Tốc độ tween (studs/giây)
+}
+
+-- ================= GUI chính =================
+local screenGui = Instance.new("ScreenGui")
+screenGui.Name = "FlyFollowMobile"
+screenGui.ResetOnSpawn = false
+screenGui.Parent = LocalPlayer:WaitForChild("PlayerGui")
+
+local frame = Instance.new("Frame")
+frame.Size = UDim2.new(0, 230, 0, 350)
+frame.Position = UDim2.new(1, -240, 1, -360)
+frame.BackgroundColor3 = Color3.fromRGB(30,30,30)
+frame.BorderSizePixel = 0
+frame.Active = true
+frame.Draggable = true
+frame.Parent = screenGui
+
+local title = Instance.new("TextLabel")
+title.Size = UDim2.new(1, 0, 0, 30)
+title.Text = "Fly Follow (Tween)"
+title.TextColor3 = Color3.new(1,1,1)
+title.BackgroundColor3 = Color3.fromRGB(45,45,45)
+title.Font = Enum.Font.SourceSansBold
+title.TextSize = 18
+title.Parent = frame
+
+-- Target label
+local targetLabel = Instance.new("TextLabel")
+targetLabel.Size = UDim2.new(1, -20, 0, 25)
+targetLabel.Position = UDim2.new(0, 10, 0, 35)
+targetLabel.BackgroundTransparency = 1
+targetLabel.Text = "Target: None"
+targetLabel.TextColor3 = Color3.new(1,1,0)
+targetLabel.Font = Enum.Font.SourceSansBold
+targetLabel.TextSize = 16
+targetLabel.Parent = frame
+
+-- Distance label
+local distLabel = Instance.new("TextLabel")
+distLabel.Size = UDim2.new(1, -20, 0, 25)
+distLabel.Position = UDim2.new(0, 10, 0, 60)
+distLabel.BackgroundTransparency = 1
+distLabel.Text = "Distance: 0"
+distLabel.TextColor3 = Color3.fromRGB(0,255,0)
+distLabel.Font = Enum.Font.SourceSansBold
+distLabel.TextSize = 16
+distLabel.Parent = frame
+
+-- Clear target button
+local clearBtn = Instance.new("TextButton")
+clearBtn.Size = UDim2.new(1, -20, 0, 25)
+clearBtn.Position = UDim2.new(0, 10, 0, 90)
+clearBtn.Text = "Clear Target"
+clearBtn.BackgroundColor3 = Color3.fromRGB(100,60,60)
+clearBtn.TextColor3 = Color3.new(1,1,1)
+clearBtn.Font = Enum.Font.SourceSansBold
+clearBtn.TextSize = 16
+clearBtn.Parent = frame
+
+-- Player list
+local playerList = Instance.new("ScrollingFrame")
+playerList.Size = UDim2.new(1, -10, 0, 100)
+playerList.Position = UDim2.new(0, 5, 0, 125)
+playerList.BackgroundColor3 = Color3.fromRGB(20,20,20)
+playerList.BorderSizePixel = 0
+playerList.ScrollBarThickness = 6
+playerList.Parent = frame
+
+-- ESP button
+local espBtn = Instance.new("TextButton")
+espBtn.Size = UDim2.new(1, -20, 0, 30)
+espBtn.Position = UDim2.new(0, 10, 0, 235)
+espBtn.Text = "ESP: OFF"
+espBtn.BackgroundColor3 = Color3.fromRGB(100,100,60)
+espBtn.TextColor3 = Color3.new(1,1,1)
+espBtn.Font = Enum.Font.SourceSansBold
+espBtn.TextSize = 16
+espBtn.Parent = frame
+
+-- Fly toggle button
+local toggleBtn = Instance.new("TextButton")
+toggleBtn.Size = UDim2.new(1, -20, 0, 40)
+toggleBtn.Position = UDim2.new(0, 10, 1, -45)
+toggleBtn.Text = "OFF"
+toggleBtn.BackgroundColor3 = Color3.fromRGB(150,50,50)
+toggleBtn.TextColor3 = Color3.new(1,1,1)
+toggleBtn.Font = Enum.Font.SourceSansBold
+toggleBtn.TextSize = 20
+toggleBtn.Parent = frame
+
+-- Tween Speed label
+local speedLabel = Instance.new("TextLabel")
+speedLabel.Size = UDim2.new(1, -20, 0, 25)
+speedLabel.Position = UDim2.new(0, 10, 0, 275)
+speedLabel.BackgroundTransparency = 1
+speedLabel.Text = "Speed: " .. config.tweenSpeed .. " studs/s"
+speedLabel.TextColor3 = Color3.new(1,1,1)
+speedLabel.Font = Enum.Font.SourceSansBold
+speedLabel.TextSize = 16
+speedLabel.Parent = frame
+
+-- Mini Menu Toggle
+local miniBtn = Instance.new("TextButton")
+miniBtn.Size = UDim2.new(0, 60, 0, 30)
+miniBtn.Position = UDim2.new(0, 20, 0, 100)
+miniBtn.Text = "Menu"
+miniBtn.BackgroundColor3 = Color3.fromRGB(80,80,150)
+miniBtn.TextColor3 = Color3.new(1,1,1)
+miniBtn.Font = Enum.Font.SourceSansBold
+miniBtn.TextSize = 16
+miniBtn.Active = true
+miniBtn.Draggable = true
+miniBtn.Parent = screenGui
+
+-- GUI toggle button
+local guiToggleBtn = Instance.new("TextButton")
+guiToggleBtn.Size = UDim2.new(0, 60, 0, 30)
+guiToggleBtn.Position = UDim2.new(0, 20, 0, 140)
+guiToggleBtn.Text = "GUI OFF"
+guiToggleBtn.BackgroundColor3 = Color3.fromRGB(150,80,80)
+guiToggleBtn.TextColor3 = Color3.new(1,1,1)
+guiToggleBtn.Font = Enum.Font.SourceSansBold
+guiToggleBtn.TextSize = 14
+guiToggleBtn.Parent = screenGui
+
+local guiVisible = true
+miniBtn.MouseButton1Click:Connect(function()
+    guiVisible = not guiVisible
+    frame.Visible = guiVisible
+end)
+
+guiToggleBtn.MouseButton1Click:Connect(function()
+    frame.Visible = not frame.Visible
+    guiToggleBtn.Text = frame.Visible and "GUI OFF" or "GUI ON"
+end)
+
+-- ================= Core biến =================
+local following = false
+local targetPlayer = nil
+local currentTween = nil
+local shouldTween = false
+local noclipConn, highlightInst
+local espEnabled = false
+
+local function safeRoot(char)
+    return char and char:FindFirstChild("HumanoidRootPart")
+end
+
+-- Noclip và Highlight
+local function enableNoClipAndHighlight()
+    local char = LocalPlayer.Character
+    if not char then return end
+    
+    -- Tạo highlight
+    if not char:FindFirstChild('highlight') then
+        highlightInst = Instance.new('Highlight')
+        highlightInst.Name = "highlight"
+        highlightInst.Enabled = true
+        highlightInst.FillColor = Color3.fromRGB(0, 191, 255)
+        highlightInst.OutlineColor = Color3.fromRGB(255, 255, 255)
+        highlightInst.FillTransparency = 0.5
+        highlightInst.OutlineTransparency = 0.2
+        highlightInst.Parent = char
+    end
+    
+    -- Noclip connection
+    if noclipConn then noclipConn:Disconnect() end
+    noclipConn = RunService.Stepped:Connect(function()
+        for _, part in ipairs(char:GetChildren()) do
+            if part:IsA("BasePart") then part.CanCollide = false end
+        end
+    end)
+    
+    -- Tạo BodyVelocity để giữ vị trí khi không tween
+    local hrp = safeRoot(char)
+    if hrp and not hrp:FindFirstChild("BodyClip") then
+        local bodyVel = Instance.new("BodyVelocity")
+        bodyVel.Name = "BodyClip"
+        bodyVel.Parent = hrp
+        bodyVel.MaxForce = Vector3.new(1e5, 1e5, 1e5)
+        bodyVel.Velocity = Vector3.new(0, 0, 0)
+    end
+end
+
+local function disableNoClipAndHighlight()
+    if noclipConn then noclipConn:Disconnect() noclipConn = nil end
+    
+    local char = LocalPlayer.Character
+    if char then
+        -- Xóa highlight
+        local highlight = char:FindFirstChild('highlight')
+        if highlight then highlight:Destroy() end
+        
+        -- Xóa BodyVelocity
+        local hrp = safeRoot(char)
+        if hrp then
+            local bodyClip = hrp:FindFirstChild("BodyClip")
+            if bodyClip then bodyClip:Destroy() end
+        end
+    end
+end
+
+-- Hàm tween teleport
+local function tweenTeleport(targetCFrame)
+    local char = LocalPlayer.Character
+    if not char then return end
+    
+    local hrp = safeRoot(char)
+    if not hrp then return end
+    
+    -- Dừng tween hiện tại nếu có
+    if currentTween then
+        currentTween:Cancel()
+        currentTween = nil
+    end
+    
+    -- Tính khoảng cách và thời gian tween
+    local distance = (targetCFrame.Position - hrp.Position).Magnitude
+    local duration = distance / config.tweenSpeed
+    
+    -- Tạo tween
+    local tweenInfo = TweenInfo.new(duration, Enum.EasingStyle.Linear)
+    currentTween = TweenService:Create(hrp, tweenInfo, {
+        CFrame = targetCFrame
+    })
+    
+    currentTween:Play()
+    
+    -- Theo dõi tween
+    task.spawn(function()
+        while currentTween and currentTween.PlaybackState == Enum.PlaybackState.Playing do
+            if not shouldTween or not following then
+                currentTween:Cancel()
+                break
+            end
+            task.wait(0.1)
+        end
+        currentTween = nil
+    end)
+end
+
+-- Fly toggle
+local function setFollowing(val)
+    following = val
+    local char = LocalPlayer.Character
+    local hrp = safeRoot(char)
+    
+    if following then
+        toggleBtn.Text = "ON"
+        toggleBtn.BackgroundColor3 = Color3.fromRGB(50,150,50)
+        shouldTween = true
+        
+        if hrp then
+            local humanoid = char:FindFirstChildOfClass("Humanoid")
+            if humanoid then humanoid.PlatformStand = true end
+        end
+        
+        enableNoClipAndHighlight()
+    else
+        toggleBtn.Text = "OFF"
+        toggleBtn.BackgroundColor3 = Color3.fromRGB(150,50,50)
+        shouldTween = false
+        
+        -- Dừng tween hiện tại
+        if currentTween then
+            currentTween:Cancel()
+            currentTween = nil
+        end
+        
+        local char = LocalPlayer.Character
+        if char then
+            local humanoid = char:FindFirstChildOfClass("Humanoid")
+            if humanoid then humanoid.PlatformStand = false end
+        end
+        
+        disableNoClipAndHighlight()
+    end
+end
+
+toggleBtn.MouseButton1Click:Connect(function()
+    setFollowing(not following)
+end)
+
+-- Clear Target
+clearBtn.MouseButton1Click:Connect(function()
+    targetPlayer = nil
+    targetLabel.Text = "Target: None"
+    distLabel.Text = "Distance: 0"
+    
+    -- Dừng tween khi clear target
+    if currentTween then
+        currentTween:Cancel()
+        currentTween = nil
+    end
+end)
+
+-- Player list
+local function refreshPlayers()
+    for _, child in pairs(playerList:GetChildren()) do
+        if child:IsA("TextButton") then child:Destroy() end
+    end
+    
+    local y = 0
+    for _, p in pairs(Players:GetPlayers()) do
+        if p ~= LocalPlayer then
+            local btn = Instance.new("TextButton")
+            btn.Size = UDim2.new(1, -4, 0, 30)
+            btn.Position = UDim2.new(0, 2, 0, y)
+            btn.Text = p.Name
+            btn.BackgroundColor3 = Color3.fromRGB(60,60,60)
+            btn.TextColor3 = Color3.new(1,1,1)
+            btn.Parent = playerList
+            
+            btn.MouseButton1Click:Connect(function()
+                targetPlayer = p
+                targetLabel.Text = "Target: " .. p.Name
+            end)
+            
+            y = y + 32
+        end
+    end
+    playerList.CanvasSize = UDim2.new(0,0,0,y)
+end
+
+Players.PlayerAdded:Connect(refreshPlayers)
+Players.PlayerRemoving:Connect(function(plr)
+    if targetPlayer == plr then
+        targetPlayer = nil
+        targetLabel.Text = "Target: None"
+        distLabel.Text = "Distance: 0"
+        
+        if currentTween then
+            currentTween:Cancel()
+            currentTween = nil
+        end
+    end
+    refreshPlayers()
+end)
+
+refreshPlayers()
+
+-- ESP Toggle
+espBtn.MouseButton1Click:Connect(function()
+    espEnabled = not espEnabled
+    espBtn.Text = "ESP: " .. (espEnabled and "ON" or "OFF")
+end)
+
+-- ESP Loop
+RunService.Heartbeat:Connect(function()
+    for _, p in pairs(Players:GetPlayers()) do
+        if p ~= LocalPlayer and p.Character then
+            local hrp = p.Character:FindFirstChild("HumanoidRootPart")
+            if hrp then
+                local espTag = hrp:FindFirstChild("ESPTag")
+                if espEnabled then
+                    if not espTag then
+                        espTag = Instance.new("BillboardGui", hrp)
+                        espTag.Name = "ESPTag"
+                        espTag.Size = UDim2.new(0,200,0,50)
+                        espTag.AlwaysOnTop = true
+                        local label = Instance.new("TextLabel", espTag)
+                        label.Size = UDim2.new(1,0,1,0)
+                        label.BackgroundTransparency = 1
+                        label.TextScaled = true
+                        label.TextStrokeTransparency = 0.2
+                    end
+                    
+                    local label = espTag:FindFirstChild("TextLabel")
+                    if label then
+                        local dist = (LocalPlayer.Character and safeRoot(LocalPlayer.Character) and 
+                                     (safeRoot(LocalPlayer.Character).Position - hrp.Position).Magnitude) or 0
+                        label.Text = string.format("%s\n@%s\n[%dm]", p.DisplayName, p.Name, math.floor(dist))
+                        label.TextColor3 = p.Team and p.Team.TeamColor.Color or Color3.new(1,1,1)
+                    end
+                else
+                    if espTag then espTag:Destroy() end
+                end
+            end
+        end
+    end
+end)
+
+-- ================= Tween Fly Loop =================
+RunService.Heartbeat:Connect(function(dt)
+    if not following or not targetPlayer then
+        distLabel.Text = "Distance: 0"
+        return
+    end
+    
+    local char = LocalPlayer.Character
+    local hrp = safeRoot(char)
+    if not hrp or not targetPlayer.Character then 
+        distLabel.Text = "Distance: 0"
+        return 
+    end
+    
+    local targetRoot = safeRoot(targetPlayer.Character)
+    if not targetRoot then 
+        distLabel.Text = "Distance: 0"
+        return 
+    end
+    
+    local targetPos = targetRoot.Position + Vector3.new(0, config.heightOffset, 0)
+    local currentPos = hrp.Position
+    local dist = (targetPos - currentPos).Magnitude
+    
+    -- Update GUI Distance
+    distLabel.Text = "Distance: "..math.floor(dist)
+    
+    -- Chỉ tween nếu cách xa và không có tween nào đang chạy
+    if dist > config.stopDistance and shouldTween then
+        -- Kiểm tra nếu không có tween nào đang chạy
+        if not currentTween or currentTween.PlaybackState == Enum.PlaybackState.Completed then
+            local targetCFrame = CFrame.new(targetPos)
+            tweenTeleport(targetCFrame)
+        end
+    elseif dist <= config.stopDistance then
+        -- Dừng khi đến gần
+        if currentTween then
+            currentTween:Cancel()
+            currentTween = nil
+        end
+    end
+end)
+
+-- Anti AFK
+LocalPlayer.Idled:Connect(function()
+    UserInputService.MouseMove:Fire()
+end)
+
+print("[FlyFollow_Mobile_TweenVersion] Loaded!")
