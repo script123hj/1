@@ -1,0 +1,326 @@
+-- Services
+local Players = game:GetService("Players")
+local Player = Players.LocalPlayer
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local TeleportService = game:GetService("TeleportService")
+
+-- Biến toàn cục
+_G.Grabfruit = true  -- Luôn bật auto farm
+_G.AutoStoreFruit = true  -- Luôn bật auto store
+local HasJoinedMarines = false
+local MarinesJoinedTime = 0
+
+--------------------------------------------------------------------
+-- HÀM JOIN MARINES
+--------------------------------------------------------------------
+local function JoinMarines()
+    if HasJoinedMarines then return end
+    pcall(function()
+        if ReplicatedStorage:FindFirstChild("Remotes") and ReplicatedStorage.Remotes:FindFirstChild("CommF_") then
+            ReplicatedStorage.Remotes.CommF_:InvokeServer("SetTeam", "Marines")
+            HasJoinedMarines = true
+            MarinesJoinedTime = tick()  -- Lưu thời điểm join Marines
+            print("✅ Đã join Marines thành công!")
+        else
+            print("⚠️ Không tìm thấy remote để join Marines")
+        end
+    end)
+end
+
+--------------------------------------------------------------------
+-- HÀM HOP SERVER
+--------------------------------------------------------------------
+local function Hop()
+    print("🔍 Đang tìm server để hop...")
+    pcall(function()
+        for count = math.random(1, math.random(40, 75)), 100 do
+            local remote = ReplicatedStorage:FindFirstChild("__ServerBrowser")
+            if remote then
+                local serverList = remote:InvokeServer(count)
+                if serverList then
+                    for serverId, serverData in next, serverList do
+                        if tonumber(serverData['Count']) and tonumber(serverData['Count']) < 12 then
+                            print("🎯 Tìm thấy server có " .. serverData['Count'] .. " người. Đang hop...")
+                            TeleportService:TeleportToPlaceInstance(game.PlaceId, serverId)
+                            return
+                        end
+                    end
+                end
+            else
+                print("❌ Không tìm thấy __ServerBrowser")
+                break
+            end
+        end
+        print("⚠️ Không tìm thấy server phù hợp để hop")
+    end)
+end
+
+--------------------------------------------------------------------
+-- HÀM STORE FRUIT (lưu trữ fruit)
+--------------------------------------------------------------------
+local function StoreFruit()
+    pcall(function()
+        -- Kiểm tra delay 2s sau khi join Marines
+        if HasJoinedMarines and (tick() - MarinesJoinedTime) < 2 then
+            return
+        end
+        
+        local backpack = Player.Backpack
+        if not backpack then return end
+        
+        for _, tool in pairs(backpack:GetChildren()) do
+            if tool:IsA("Tool") and string.find(tool.Name, "Fruit") then
+                local originalName = tool:GetAttribute("OriginalName")
+                if originalName then
+                    ReplicatedStorage.Remotes.CommF_:InvokeServer("StoreFruit", originalName, tool)
+                    print("📦 Đã lưu fruit: " .. tool.Name)
+                end
+            end
+        end
+    end)
+end
+
+--------------------------------------------------------------------
+-- AUTO STORE FRUIT SYSTEM
+--------------------------------------------------------------------
+local function AutoStoreAllFruits()
+    while task.wait(0.2) do
+        -- Kiểm tra delay 2s sau khi join Marines
+        if HasJoinedMarines and (tick() - MarinesJoinedTime) < 2 then
+            continue
+        end
+        
+        if _G.AutoStoreFruit then
+            pcall(function()
+                local v1355 = game:GetService("Players").LocalPlayer
+                local v1356 = v1355.Character or v1355.CharacterAdded:Wait()
+                local v1357 = v1355:WaitForChild("Backpack")
+                
+                local fruitList = {
+                    {"Rocket Fruit", "Rocket-Rocket"},
+                    {"Spin Fruit", "Spin-Spin"},
+                    {"Blade Fruit", "Blade-Blade"},
+                    {"Spring Fruit", "Spring-Spring"},
+                    {"Bomb Fruit", "Bomb-Bomb"},
+                    {"Smoke Fruit", "Smoke-Smoke"},
+                    {"Spike Fruit", "Spike-Spike"},
+                    {"Flame Fruit", "Flame-Flame"},
+                    {"Eagle Fruit", "Eagle-Eagle"},
+                    {"Ice Fruit", "Ice-Ice"},
+                    {"Sand Fruit", "Sand-Sand"},
+                    {"Dark Fruit", "Dark-Dark"},
+                    {"Diamond Fruit", "Diamond-Diamond"},
+                    {"Light Fruit", "Light-Light"},
+                    {"Rubber Fruit", "Rubber-Rubber"},
+                    {"Creation Fruit", "Creation-Creation"},
+                    {"Ghost Fruit", "Ghost-Ghost"},
+                    {"Magma Fruit", "Magma-Magma"},
+                    {"Quake Fruit", "Quake-Quake"},
+                    {"Buddha Fruit", "Buddha-Buddha"},
+                    {"Love Fruit", "Love-Love"},
+                    {"Spider Fruit", "Spider-Spider"},
+                    {"Sound Fruit", "Sound-Sound"},
+                    {"Phoenix Fruit", "Phoenix-Phoenix"},
+                    {"Portal Fruit", "Portal-Portal"},
+                    {"Lightning Fruit", "Lightning-Lightning"},
+                    {"Pain Fruit", "Pain-Pain"},
+                    {"Blizzard Fruit", "Blizzard-Blizzard"},
+                    {"Gravity Fruit", "Gravity-Gravity"},
+                    {"Mammoth Fruit", "Mammoth-Mammoth"},
+                    {"T-Rex Fruit", "T-Rex-T-Rex"},
+                    {"Dough Fruit", "Dough-Dough"},
+                    {"Shadow Fruit", "Shadow-Shadow"},
+                    {"Venom Fruit", "Venom-Venom"},
+                    {"Gas Fruit", "Gas-Gas"},
+                    {"Control Fruit", "Control-Control"},
+                    {"Spirit Fruit", "Spirit-Spirit"},
+                    {"Leopard Fruit", "Leopard-Leopard"},
+                    {"Yeti Fruit", "Yeti-Yeti"},
+                    {"Kitsune Fruit", "Kitsune-Kitsune"},
+                    {"Dragon Fruit", "Dragon-Dragon"}
+                }
+                
+                for _, fruitData in ipairs(fruitList) do
+                    local fruitName = fruitData[1]
+                    local fruitCode = fruitData[2]
+                    
+                    local fruitTool = v1357:FindFirstChild(fruitName) or v1356:FindFirstChild(fruitName)
+                    if fruitTool then
+                        ReplicatedStorage.Remotes.CommF_:InvokeServer("StoreFruit", fruitCode, fruitTool)
+                        print("📦 Auto store: " .. fruitName)
+                        break
+                    end
+                end
+            end)
+        end
+    end
+end
+
+--------------------------------------------------------------------
+-- AUTO FARM FRUITS
+--------------------------------------------------------------------
+local function AutoFarmFruits()
+    while wait(0.1) do
+        -- Kiểm tra delay 2s sau khi join Marines
+        if HasJoinedMarines and (tick() - MarinesJoinedTime) < 2 then
+            continue
+        end
+        
+        if _G.Grabfruit then
+            local foundFruit = false
+            
+            -- Tìm fruit trong Workspace
+            for _, child in pairs(game.Workspace:GetChildren()) do
+                if string.find(child.Name, "Fruit") and child:FindFirstChild("Handle") then
+                    foundFruit = true
+                    
+                    -- Di chuyển đến fruit
+                    local char = Player.Character
+                    if char and char:FindFirstChild("HumanoidRootPart") then
+                        char.HumanoidRootPart.CFrame = child.Handle.CFrame
+                        wait(0.5) -- Đợi một chút để thu thập
+                    end
+                    break
+                end
+            end
+            
+            -- Nếu không tìm thấy fruit, check lại sau
+            if not foundFruit then
+                wait(1)
+            end
+        end
+    end
+end
+
+--------------------------------------------------------------------
+-- STORE FRUIT AUTO (thường xuyên kiểm tra và lưu)
+--------------------------------------------------------------------
+local function AutoStoreLoop()
+    while wait(3) do  -- Kiểm tra mỗi 3 giây
+        -- Kiểm tra delay 2s sau khi join Marines
+        if HasJoinedMarines and (tick() - MarinesJoinedTime) < 2 then
+            continue
+        end
+        
+        StoreFruit()
+    end
+end
+
+--------------------------------------------------------------------
+-- KHỞI CHẠY TẤT CẢ TÍNH NĂNG
+--------------------------------------------------------------------
+print("🚀 Bắt đầu script Auto Farm Blox Fruits")
+print("════════════════════════════════════════")
+
+-- 1. Join Marines ngay lập tức
+task.spawn(function()
+    wait(1)
+    JoinMarines()
+    
+    -- Đợi 2s sau khi join Marines rồi mới bắt đầu farm/store
+    wait(2)
+    print("✅ Đã qua 2s delay sau khi join Marines, bắt đầu farm/store")
+end)
+
+-- 2. Auto Hop Server sau 5 giây
+task.spawn(function()
+    wait(5)  -- Đã sửa từ 10s thành 5s
+    print("⏰ Tự động hop server sau 5 giây...")
+    Hop()
+end)
+
+-- 3. Khởi chạy Auto Farm Fruits (có delay check)
+task.spawn(function()
+    wait(3)  -- Thêm delay 3s trước khi bắt đầu farm
+    AutoFarmFruits()
+end)
+
+-- 4. Khởi chạy Auto Store Fruits (có delay check)
+task.spawn(function()
+    wait(3)  -- Thêm delay 3s trước khi bắt đầu store
+    AutoStoreAllFruits()
+end)
+
+-- 5. Khởi chạy Auto Store Loop (dự phòng)
+task.spawn(function()
+    wait(3)  -- Thêm delay 3s
+    AutoStoreLoop()
+end)
+
+-- 6. Manual Hop Command (dùng trong console)
+_G.HopServer = function()
+    Hop()
+end
+
+-- 7. Manual Store Command (dùng trong console)
+_G.StoreAllFruits = function()
+    StoreFruit()
+end
+
+--------------------------------------------------------------------
+-- HIỂN THỊ THÔNG TIN
+--------------------------------------------------------------------
+print("✅ Đã khởi chạy tất cả tính năng:")
+print("   • Auto Join Marines (sau 1s)")
+print("   • Auto Farm Fruits (sau delay 2s từ khi join Marines)")
+print("   • Auto Store Fruits (sau delay 2s từ khi join Marines)")
+print("   • Auto Hop Server (sau 5s)")
+print("")
+print("🎮 Các lệnh trong console:")
+print("   _G.HopServer() - Hop server thủ công")
+print("   _G.StoreAllFruits() - Lưu fruits thủ công")
+print("")
+print("📝 Script đang chạy...")
+
+--------------------------------------------------------------------
+-- KIỂM TRA REMOTE
+--------------------------------------------------------------------
+task.spawn(function()
+    wait(2)
+    if not ReplicatedStorage:FindFirstChild("__ServerBrowser") then
+        print("⚠️ Cảnh báo: Không tìm thấy __ServerBrowser, chức năng hop có thể không hoạt động")
+    end
+    
+    if not ReplicatedStorage:FindFirstChild("Remotes") then
+        print("⚠️ Cảnh báo: Không tìm thấy Remotes folder")
+    end
+end)
+
+--------------------------------------------------------------------
+-- AUTO REJOIN KHI TELEPORT THẤT BẠI
+--------------------------------------------------------------------
+TeleportService.TeleportInitFailed:Connect(function()
+    print("❌ Teleport thất bại, thử lại sau 5 giây...")
+    wait(5)
+    Hop()
+end)
+
+--------------------------------------------------------------------
+-- KIỂM TRA VÀ CẬP NHẬT LIÊN TỤC
+--------------------------------------------------------------------
+task.spawn(function()
+    local lastCheck = tick()
+    
+    while wait(30) do
+        local currentTime = tick()
+        local timeSinceJoin = currentTime - MarinesJoinedTime
+        
+        print("📊 Script đang hoạt động...")
+        print("   • Place ID: " .. game.PlaceId)
+        print("   • Joined Marines: " .. tostring(HasJoinedMarines))
+        
+        if HasJoinedMarines then
+            print("   • Time since join Marines: " .. string.format("%.1f", timeSinceJoin) .. "s")
+            
+            -- Hiển thị trạng thái delay
+            if timeSinceJoin < 2 then
+                print("   • Status: Đang delay 2s sau join Marines (" .. string.format("%.1f", 2 - timeSinceJoin) .. "s còn lại)")
+            else
+                print("   • Status: Đã qua delay, đang farm/store")
+            end
+        end
+        
+        print("   • Auto Farm: " .. tostring(_G.Grabfruit))
+        print("   • Auto Store: " .. tostring(_G.AutoStoreFruit))
+    end
+end)
