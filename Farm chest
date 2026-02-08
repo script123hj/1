@@ -1,0 +1,707 @@
+-- Services
+local Players = game:GetService("Players")
+local CollectionService = game:GetService("CollectionService")
+local RunService = game:GetService("RunService")
+local TweenService = game:GetService("TweenService")
+local MarketplaceService = game:GetService("MarketplaceService")
+
+local Player = Players.LocalPlayer
+local PlayerGui = Player:WaitForChild("PlayerGui")
+
+--------------------------------------------------------------------
+-- WORLD DETECTION BY NAME
+--------------------------------------------------------------------
+local worldName = ""
+local World1 = false
+local World2 = false
+local World3 = false
+
+-- Hàm lấy tên world từ MarketplaceService
+local function GetWorldName()
+    local success, productInfo = pcall(function()
+        return MarketplaceService:GetProductInfo(game.PlaceId)
+    end)
+    
+    if success and productInfo then
+        return productInfo.Name
+    end
+    return "Unknown World"
+end
+
+-- Xác định world dựa trên tên
+local function DetectWorld()
+    worldName = GetWorldName()
+    print("World detected:", worldName)
+    
+    if string.find(worldName, "Blox Fruits$") or worldName == "Blox Fruits" then
+        World1 = true
+        World2 = false
+        World3 = false
+        print("World 1 detected")
+    elseif string.find(worldName, "Second Sea") then
+        World1 = false
+        World2 = true
+        World3 = false
+        print("World 2 detected")
+    elseif string.find(worldName, "Third Sea") then
+        World1 = false
+        World2 = false
+        World3 = true
+        print("World 3 detected")
+    else
+        print("Unknown world. Defaulting to World 1")
+        World1 = true
+        World2 = false
+        World3 = false
+    end
+end
+
+-- Chạy detection khi script khởi động
+DetectWorld()
+
+--------------------------------------------------------------------
+-- INTERMEDIATE ISLANDS CONFIGURATION
+--------------------------------------------------------------------
+local IntermediateIslands = {}
+
+if World1 then
+    IntermediateIslands = {
+        {name="Sky2", pos=Vector3.new(-4607.82, 872.58, -1667.56)},
+        {name="UnderWater", pos=Vector3.new(61163.85, 5.34, 1819.78)},
+        {name="Whirlpool", pos=Vector3.new(3864.69, 5.41, -1926.21)},
+    }
+elseif World2 then
+    IntermediateIslands = {
+        {name="GhostShipGate",   pos=Vector3.new(-6505.30, 75.22, -126.66)},
+        {name="GhostShip",       pos=Vector3.new(923.21, 120.98, 32852.83)},
+        {name="FlamingoMansion", pos=Vector3.new(-287.53, 280.17, 597.60)},
+        {name="FlamingoRoom",    pos=Vector3.new(2284.01, 45.19, 908.03)},
+    }
+elseif World3 then
+    IntermediateIslands = {
+        {name="HouseHydarIsland", pos=Vector3.new(5661.53, 1013.41, -334.96)},
+        {name="Mansion",          pos=Vector3.new(-12463.81, 374.95, -7550.29)},
+        {name="CastleOnTheSea",   pos=Vector3.new(-5047.54, 314.55, -3159.34)},
+    }
+else
+    -- Fallback to World 1 nếu không xác định được
+    IntermediateIslands = {
+        {name="Sky2", pos=Vector3.new(-4607.82, 872.58, -1667.56)},
+        {name="UnderWater", pos=Vector3.new(61163.85, 5.34, 1819.78)},
+        {name="Whirlpool", pos=Vector3.new(3864.69, 5.41, -1926.21)},
+    }
+end
+
+local Sky3Pos = Vector3.new(-7894.62, 5545.49, -380.25)
+
+--------------------------------------------------------------------
+-- GLOBAL VARIABLES
+--------------------------------------------------------------------
+local shouldTween = true
+local currentTween = nil
+local autoChestEnabled = false
+local currentTweenSpeed = 0
+
+--------------------------------------------------------------------
+-- NOCLIP SYSTEM (NEW)
+--------------------------------------------------------------------
+local plr = Players.LocalPlayer
+
+-- Hàm enableNoclip và disableNoclip (trên HumanoidRootPart)
+local function enableNoclip()
+    if not plr.Character.HumanoidRootPart:FindFirstChild("BodyClip") then
+        local v512 = Instance.new("BodyVelocity")
+        v512.Name = "BodyClip"
+        v512.Parent = plr.Character.HumanoidRootPart
+        v512.MaxForce = Vector3.new(100000, 100000, 100000)
+        v512.Velocity = Vector3.new(0, 0, 0)
+    end
+end
+
+local function disableNoclip()
+    local v513 = plr.Character.HumanoidRootPart:FindFirstChild("BodyClip")
+    if v513 then
+        v513:Destroy()
+    end
+end
+
+local function disableCollisions()
+    for _, v517 in pairs(plr.Character:GetDescendants()) do
+        if v517:IsA("BasePart") then
+            v517.CanCollide = false
+        end
+    end
+end
+
+-- Vòng lặp noclip chính (trên Head)
+task.spawn(function()
+    while task.wait() do
+        pcall(function()
+            if autoChestEnabled then
+                if not plr.Character.Head:FindFirstChild("Nigga") then
+                    local v503 = Instance.new("BodyVelocity")
+                    v503.P = 1500
+                    v503.Name = "Nigga"
+                    v503.MaxForce = Vector3.new(0, 100000, 0)
+                    v503.Velocity = Vector3.new(0, 0, 0)
+                    v503.Parent = plr.Character.Head
+                end
+                for _, v507 in pairs(plr.Character:GetDescendants()) do
+                    if v507:IsA("BasePart") then
+                        v507.CanCollide = false
+                    end
+                end
+            elseif plr.Character.Head:FindFirstChild("Nigga") then
+                plr.Character.Head:FindFirstChild("Nigga"):Destroy()
+            end
+        end)
+    end
+end)
+
+-- Vòng lặp bật/tắt noclip trên HumanoidRootPart (dựa trên autoChestEnabled)
+task.spawn(function()
+    while task.wait(0.2) do
+        pcall(function()
+            if autoChestEnabled then
+                enableNoclip()
+                disableCollisions()
+            else
+                disableNoclip()
+            end
+        end)
+    end
+end)
+
+--------------------------------------------------------------------
+-- OPTIMIZED TELEPORT SYSTEM WITH VARIABLE SPEED
+--------------------------------------------------------------------
+local function _tp(targetCFrame, speed)
+    if not shouldTween then return end
+
+    local char = Player.Character
+    if not char then return end
+    local hrp = char:FindFirstChild("HumanoidRootPart")
+    if not hrp then return end
+
+    local distance = (targetCFrame.Position - hrp.Position).Magnitude
+
+    -- Nếu speed thay đổi → hủy tween cũ
+    if currentTween and currentTweenSpeed ~= speed then
+        pcall(function()
+            currentTween:Cancel()
+        end)
+        currentTween = nil
+    end
+
+    -- Nếu đang tween đúng speed → không tạo lại
+    if currentTween then return end
+
+    currentTweenSpeed = speed
+
+    local tweenInfo = TweenInfo.new(distance / speed, Enum.EasingStyle.Linear)
+    currentTween = TweenService:Create(hrp, tweenInfo, {
+        CFrame = targetCFrame
+    })
+
+    currentTween:Play()
+
+    currentTween.Completed:Once(function()
+        currentTween = nil
+    end)
+end
+
+--------------------------------------------------------------------
+-- TELEPORT UTIL (KEPT FOR INTERMEDIATE ISLANDS AND Y TELEPORT)
+--------------------------------------------------------------------
+local function teleportSpam(position, duration)
+    local char = Player.Character
+    if not char then return end
+    local hrp = char:FindFirstChild("HumanoidRootPart")
+    if not hrp then return end
+    
+    local t = tick() + duration
+    while tick() < t do
+        hrp.CFrame = CFrame.new(position + Vector3.new(0, 2, 0))
+        task.wait()
+    end
+end
+
+local function teleportMatchY(chestPos)
+    local char = Player.Character
+    if not char then return end
+    local hrp = char:FindFirstChild("HumanoidRootPart")
+    if not hrp then return end
+    hrp.CFrame = CFrame.new(hrp.Position.X, chestPos.Y + 2, hrp.Position.Z)
+end
+
+local function getIntermediateTeleport(a, b)
+    local ad = (Vector2.new(a.X, a.Z) - Vector2.new(b.X, b.Z)).Magnitude
+    local best = nil
+    local mb = math.huge
+    
+    for _, is in ipairs(IntermediateIslands) do
+        local d = (Vector2.new(is.pos.X, is.pos.Z) - Vector2.new(b.X, b.Z)).Magnitude
+        if d < mb then
+            mb = d
+            best = is
+        end
+    end
+    
+    if best and mb < ad then
+        return best
+    end
+    return nil
+end
+
+--------------------------------------------------------------------
+-- GUI MAIN
+--------------------------------------------------------------------
+local screenGui = Instance.new("ScreenGui")
+screenGui.Name = "AutoFarmChestGui"
+screenGui.Parent = PlayerGui
+
+local toggleButton = Instance.new("TextButton")
+toggleButton.Size = UDim2.new(0, 150, 0, 50)
+toggleButton.Position = UDim2.new(0, 20, 0, 20)
+toggleButton.BackgroundColor3 = Color3.fromRGB(0, 170, 255)
+toggleButton.TextColor3 = Color3.new(1, 1, 1)
+toggleButton.Font = Enum.Font.SourceSansBold
+toggleButton.TextSize = 24
+toggleButton.Text = "Auto Chest: OFF"
+toggleButton.Parent = screenGui
+
+-- Thêm hiển thị world name
+local worldInfoLabel = Instance.new("TextLabel")
+worldInfoLabel.Size = UDim2.new(0, 150, 0, 20)
+worldInfoLabel.Position = UDim2.new(0, 20, 0, 75)
+worldInfoLabel.Text = "World: " .. worldName
+worldInfoLabel.TextColor3 = Color3.new(1, 1, 1)
+worldInfoLabel.BackgroundTransparency = 1
+worldInfoLabel.TextSize = 12
+worldInfoLabel.Font = Enum.Font.SourceSans
+worldInfoLabel.TextTruncate = Enum.TextTruncate.AtEnd
+worldInfoLabel.Parent = screenGui
+
+local lastJumpedChest = nil
+local lastJumpTime = 0
+local speedLabel = nil
+
+--------------------------------------------------------------------
+-- CREATE SPEED LABEL
+--------------------------------------------------------------------
+task.spawn(function()
+    speedLabel = Instance.new("TextLabel")
+    speedLabel.Size = UDim2.new(0, 150, 0, 20)
+    speedLabel.Position = UDim2.new(0, 20, 0, 115)
+    speedLabel.Text = "Speed: 350"
+    speedLabel.TextColor3 = Color3.new(1, 1, 1)
+    speedLabel.BackgroundTransparency = 1
+    speedLabel.TextSize = 12
+    speedLabel.Font = Enum.Font.SourceSans
+    speedLabel.Visible = false
+    speedLabel.Parent = screenGui
+end)
+
+--------------------------------------------------------------------
+-- AUTO JUMP FUNCTION
+--------------------------------------------------------------------
+local function PerformJumpNearChest(chest)
+    if not autoChestEnabled then return end
+    
+    local char = Player.Character
+    if not char then return end
+    
+    local humanoid = char:FindFirstChild("Humanoid")
+    if not humanoid then return end
+    
+    -- Sử dụng tên chest để tracking
+    local chestName = chest.Name
+    local now = tick()
+    
+    if lastJumpedChest == chestName and (now - lastJumpTime) < 2 then
+        return
+    end
+    
+    -- Jump
+    humanoid:ChangeState(Enum.HumanoidStateType.Jumping)
+    
+    -- Cập nhật thông tin
+    lastJumpedChest = chestName
+    lastJumpTime = now
+end
+
+--------------------------------------------------------------------
+-- STOP BUTTON
+--------------------------------------------------------------------
+local stopBtn = Instance.new("TextButton")
+stopBtn.Size = UDim2.new(0, 60, 0, 25)
+stopBtn.Position = UDim2.new(1, -65, 0, 5)
+stopBtn.BackgroundColor3 = Color3.fromRGB(255, 80, 80)
+stopBtn.Text = "STOP"
+stopBtn.TextColor3 = Color3.new(1,1,1)
+stopBtn.Parent = screenGui
+
+stopBtn.MouseButton1Click:Connect(function()
+    shouldTween = false
+    autoChestEnabled = false
+    toggleButton.Text = "Auto Chest: OFF"
+    toggleButton.BackgroundColor3 = Color3.fromRGB(0, 170, 255)
+    
+    -- Hủy tween hiện tại
+    if currentTween then
+        pcall(function()
+            currentTween:Cancel()
+        end)
+        currentTween = nil
+    end
+    
+    -- Ẩn speed label
+    if speedLabel then
+        speedLabel.Visible = false
+    end
+    
+    lastJumpedChest = nil
+    lastJumpTime = 0
+end)
+
+--------------------------------------------------------------------
+-- HIDE/SHOW BUTTON
+--------------------------------------------------------------------
+local toggleHide = Instance.new("TextButton")
+toggleHide.Size = UDim2.new(0, 25, 0, 25)
+toggleHide.Position = UDim2.new(1, -100, 0, 5)
+toggleHide.BackgroundColor3 = Color3.fromRGB(50, 200, 255)
+toggleHide.TextColor3 = Color3.new(1,1,1)
+toggleHide.Text = "-"
+toggleHide.Parent = screenGui
+
+toggleHide.MouseButton1Click:Connect(function()
+    toggleButton.Visible = not toggleButton.Visible
+    worldInfoLabel.Visible = toggleButton.Visible
+    stopBtn.Visible = toggleButton.Visible
+    if speedLabel then
+        speedLabel.Visible = toggleButton.Visible and autoChestEnabled
+    end
+    toggleHide.Text = toggleButton.Visible and "-" or "+"
+end)
+
+--------------------------------------------------------------------
+-- CLOSE POPUP GUI
+--------------------------------------------------------------------
+local closeBtn = Instance.new("TextButton")
+closeBtn.Size = UDim2.new(0, 25, 0, 25)
+closeBtn.Position = UDim2.new(1, -130, 0, 5)
+closeBtn.BackgroundColor3 = Color3.fromRGB(255, 50, 50)
+closeBtn.TextColor3 = Color3.new(1,1,1)
+closeBtn.Text = "X"
+closeBtn.ZIndex = 3
+closeBtn.Parent = screenGui
+
+local popup = Instance.new("Frame")
+popup.Size = UDim2.new(0, 300, 0, 150)
+popup.Position = UDim2.new(0.5, -150, 0.5, -75)
+popup.AnchorPoint = Vector2.new(0.5, 0.5)
+popup.BackgroundColor3 = Color3.fromRGB(50,50,50)
+popup.BorderSizePixel = 2
+popup.BorderColor3 = Color3.fromRGB(100,100,100)
+popup.Visible = false
+popup.ZIndex = 10
+popup.Parent = screenGui
+
+local title = Instance.new("TextLabel")
+title.Size = UDim2.new(1,0,0,40)
+title.Position = UDim2.new(0,0,0,10)
+title.Text = "Bạn có muốn xóa GUI?"
+title.TextColor3 = Color3.new(1,1,1)
+title.BackgroundTransparency = 1
+title.Font = Enum.Font.SourceSansBold
+title.TextSize = 20
+title.ZIndex = 11
+title.Parent = popup
+
+local noBtn = Instance.new("TextButton")
+noBtn.Size = UDim2.new(0.5,-5,0,40)
+noBtn.Position = UDim2.new(0,5,1,-45)
+noBtn.Text = "Không"
+noBtn.BackgroundColor3 = Color3.fromRGB(100,200,100)
+noBtn.TextColor3 = Color3.new(1,1,1)
+noBtn.ZIndex = 11
+noBtn.Parent = popup
+
+local yesBtn = Instance.new("TextButton")
+yesBtn.Size = UDim2.new(0.5,-5,0,40)
+yesBtn.Position = UDim2.new(0.5,0,1,-45)
+yesBtn.Text = "Có"
+yesBtn.BackgroundColor3 = Color3.fromRGB(200,100,100)
+yesBtn.TextColor3 = Color3.new(1,1,1)
+yesBtn.ZIndex = 11
+yesBtn.Parent = popup
+
+local overlay = Instance.new("TextButton")
+overlay.Size = UDim2.new(1, 0, 1, 0)
+overlay.BackgroundColor3 = Color3.new(0, 0, 0)
+overlay.BackgroundTransparency = 0.5
+overlay.Text = ""
+overlay.Visible = false
+overlay.ZIndex = 9
+overlay.Parent = screenGui
+
+closeBtn.MouseButton1Click:Connect(function()
+    popup.Visible = true
+    overlay.Visible = true
+end)
+
+noBtn.MouseButton1Click:Connect(function()
+    popup.Visible = false
+    overlay.Visible = false
+end)
+
+yesBtn.MouseButton1Click:Connect(function()
+    shouldTween = false
+    autoChestEnabled = false
+    
+    -- Hủy tween hiện tại
+    if currentTween then
+        pcall(function()
+            currentTween:Cancel()
+        end)
+        currentTween = nil
+    end
+    
+    screenGui:Destroy()
+end)
+
+overlay.MouseButton1Click:Connect(function()
+    popup.Visible = false
+    overlay.Visible = false
+end)
+
+--------------------------------------------------------------------
+-- BUTTON FARM
+--------------------------------------------------------------------
+toggleButton.MouseButton1Click:Connect(function()
+    autoChestEnabled = not autoChestEnabled
+    shouldTween = autoChestEnabled
+    
+    if autoChestEnabled then
+        toggleButton.Text = "Auto Chest: ON"
+        toggleButton.BackgroundColor3 = Color3.fromRGB(0, 255, 0)
+        lastJumpedChest = nil
+        lastJumpTime = 0
+        
+        -- Hiển thị speed label
+        if speedLabel then
+            speedLabel.Visible = true
+            speedLabel.Text = "Speed: 350"
+        end
+    else
+        toggleButton.Text = "Auto Chest: OFF"
+        toggleButton.BackgroundColor3 = Color3.fromRGB(0, 170, 255)
+        
+        -- Ẩn speed label
+        if speedLabel then
+            speedLabel.Visible = false
+        end
+        
+        -- Hủy tween hiện tại
+        if currentTween then
+            pcall(function()
+                currentTween:Cancel()
+            end)
+            currentTween = nil
+        end
+        
+        lastJumpedChest = nil
+        lastJumpTime = 0
+    end
+end)
+
+--------------------------------------------------------------------
+-- MAIN FARMING LOOP (UPDATED WITH FIXED SKY3 LOGIC AND SPEED DISPLAY)
+--------------------------------------------------------------------
+task.spawn(function()
+    local lastChest = nil
+    local chestStart = 0
+    local skipped = {}
+    local lastSpeedDisplay = 0
+
+    while task.wait(0) do -- Giảm thời gian chờ để kiểm tra thường xuyên hơn
+        if not autoChestEnabled then 
+            continue 
+        end
+
+        local char = Player.Character
+        if not char then continue end
+
+        local hrp = char:FindFirstChild("HumanoidRootPart")
+        if not hrp then continue end
+
+        local chests = CollectionService:GetTagged("_ChestTagged")
+        if #chests == 0 then continue end
+
+        -- Filter chest skip
+        local filtered = {}
+        for _, c in ipairs(chests) do
+            if not skipped[c] and not c:GetAttribute("IsDisabled") then
+                table.insert(filtered, c)
+            end
+        end
+        if #filtered == 0 then
+            skipped = {}
+            filtered = chests
+        end
+
+        -- find nearest
+        local nearest, minDist = nil, math.huge
+        for _, c in ipairs(filtered) do
+            local pos = c:GetPivot().Position
+            local d = (pos - hrp.Position).Magnitude
+            if d < minDist then
+                nearest = c
+                minDist = d
+            end
+        end
+        if not nearest then continue end
+
+        local chestPos = nearest:GetPivot().Position
+        local playerPos = hrp.Position
+        local playerHeight = hrp.Position.Y
+
+        -- JUMP khi đến gần chest
+        if minDist < 10 then
+            PerformJumpNearChest(nearest)
+        end
+
+        -- timeout 30s cho mỗi chest
+        if lastChest == nearest then
+            if tick() - chestStart > 30 then
+                skipped[nearest] = true
+                lastChest = nil
+                continue
+            end
+        else
+            lastChest = nearest
+            chestStart = tick()
+            skipped[nearest] = nil
+        end
+
+        -- Cập nhật hiển thị tốc độ
+        local currentTime = tick()
+        if currentTime - lastSpeedDisplay > 0 then -- Cập nhật mỗi 0.5 giây
+            lastSpeedDisplay = currentTime
+            local currentSpeed = 350
+            if minDist < 600 then
+                currentSpeed = 350
+            end
+            if speedLabel then
+                speedLabel.Text = string.format("Speed: %d (%.0fm)", currentSpeed, minDist)
+            end
+        end
+
+        -- FIXED SKY3 LOGIC: Chỉ tele lên Sky3 nếu player đang ở dưới 5000 và chest trên 5000
+        if chestPos.Y > 5000 and playerHeight < 5000 then
+            -- Nếu chest ở trên 5000 và player đang dưới 5000 thì tele lên Sky3
+            teleportSpam(Sky3Pos, 0.3)
+        else
+            -- Nếu player đã ở trên 5000 rồi hoặc chest dưới 5000, kiểm tra intermediate islands như bình thường
+            local island = getIntermediateTeleport(hrp.Position, chestPos)
+            if island then
+                local distXZ = (Vector2.new(hrp.Position.X, hrp.Position.Z)
+                               - Vector2.new(island.pos.X, island.pos.Z)).Magnitude
+                local delayTime = distXZ < 5000 and 0.3 or 2
+                teleportSpam(island.pos, delayTime)
+            end
+        end
+
+        -- TELEPORT MATCH Y (GIỮ NGUYÊN)
+        teleportMatchY(chestPos)
+
+        -- SỬ DỤNG HỆ THỐNG TWEEN TỐI ƯU
+        local targetCFrame = CFrame.new(chestPos + Vector3.new(0, 2, 0))
+        
+        -- Sử dụng hệ thống tween tối ưu
+        local speed = 350
+if minDist < 600 then
+    speed = 350
+end
+
+_tp(targetCFrame, speed)
+    end
+end)
+
+--------------------------------------------------------------------
+-- STATUS LABEL
+--------------------------------------------------------------------
+local statusLabel = Instance.new("TextLabel")
+statusLabel.Size = UDim2.new(0, 150, 0, 20)
+statusLabel.Position = UDim2.new(0, 20, 0, 135)
+statusLabel.Text = "Ready"
+statusLabel.TextColor3 = Color3.new(1, 1, 1)
+statusLabel.BackgroundTransparency = 1
+statusLabel.TextSize = 14
+statusLabel.Font = Enum.Font.SourceSans
+statusLabel.Parent = screenGui
+
+-- Cập nhật trạng thái
+task.spawn(function()
+    while task.wait(0.01) do
+        if autoChestEnabled then
+            local now = tick()
+            local timeSinceLastJump = now - lastJumpTime
+            
+            if timeSinceLastJump < 0.01 then
+                statusLabel.Text = "Jumping..."
+            else
+                statusLabel.Text = "Farming..."
+            end
+        else
+            statusLabel.Text = "Ready"
+        end
+    end
+end)
+
+--------------------------------------------------------------------
+-- UPDATE WORLD INFO ON TELEPORT
+--------------------------------------------------------------------
+local function UpdateWorldInfoOnTeleport()
+    DetectWorld()
+    worldInfoLabel.Text = "World: " .. worldName
+    
+    -- Cập nhật lại Intermediate Islands
+    if World1 then
+        IntermediateIslands = {
+            {name="Sky2", pos=Vector3.new(-4607.82, 872.58, -1667.56)},
+            {name="UnderWater", pos=Vector3.new(61163.85, 5.34, 1819.78)},
+            {name="Whirlpool", pos=Vector3.new(3864.69, 5.41, -1926.21)},
+        }
+    elseif World2 then
+        IntermediateIslands = {
+            {name="GhostShipGate",   pos=Vector3.new(-6505.30, 75.22, -126.66)},
+            {name="GhostShip",       pos=Vector3.new(923.21, 120.98, 32852.83)},
+            {name="FlamingoMansion", pos=Vector3.new(-287.53, 280.17, 597.60)},
+            {name="FlamingoRoom",    pos=Vector3.new(2284.01, 45.19, 908.03)},
+        }
+    elseif World3 then
+        IntermediateIslands = {
+            {name="HouseHydarIsland", pos=Vector3.new(5661.53, 1013.41, -334.96)},
+            {name="Mansion",          pos=Vector3.new(-12463.81, 374.95, -7550.29)},
+            {name="CastleOnTheSea",   pos=Vector3.new(-5047.54, 314.55, -3159.34)},
+        }
+    end
+end
+
+-- Clean up khi script kết thúc
+game:GetService("Players").PlayerRemoving:Connect(function(player)
+    if player == Player then
+        shouldTween = false
+        autoChestEnabled = false
+        
+        -- Hủy tween hiện tại
+        if currentTween then
+            pcall(function()
+                currentTween:Cancel()
+            end)
+            currentTween = nil
+        end
+    end
+end)
